@@ -1,9 +1,0 @@
-# depslib dependency file v1.0
-1735373489 source:c:\users\ravint kosol\desktop\code\project\game\game\main.cpp
-	<windows.h>
-	<cmath>
-	<tchar.h>
-	<ctime>
-	<cstdlib>
-	<iostream>
-
