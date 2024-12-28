@@ -3,17 +3,15 @@
 #endif
 
 #include <windows.h>
-#include <cmath>
 #include <tchar.h>
-#include <ctime>
 #include <cstdlib>
-#include <iostream>
+#include <ctime>
+#include <cmath>
 const wchar_t CLASS_NAME[] = L"Sample Window class";
 const int sizeX = 750;
 const int sizeY = 500;
 bool result, playing, beginning;
 void assign_rect(RECT *rect, int x1, int y1, int x2, int y2);
-//srand(time(0));
 
 struct PIXEL
 {
@@ -59,7 +57,7 @@ struct LASER
         x = x1, y = y1;
         dx = x2-x1, dy = y2-y1;
         if(dx) m = dy/(double)dx;
-        else mul_x = 0;
+        else mul_x = 0, m = 1;
         if(dx>0) mul_x = 1;
         else if(dx<0) mul_x = -1;
         if(dy>0 && m<0) m*=-1;
@@ -115,7 +113,7 @@ struct PLAYER
     RECT hitbox;
     PLAYER(){
         left=sizeX/10-1, top=sizeY/10-3;
-        laser_cnt = 3, hp = 100, atk = 10, walkSpeed = 2, parry_MAXDUR = 5, parry_MAXCD = 20, parry_cd = parry_MAXCD;
+        laser_cnt = 3, hp = 100, atk = 10, walkSpeed = 1, parry_MAXDUR = 5, parry_MAXCD = 20, parry_cd = parry_MAXCD;
         assign_pixel(&part[0], sizeX-10, sizeY-30, sizeX, sizeY-20, CreateSolidBrush(RGB(228, 212, 199)));
         assign_pixel(&part[1], sizeX-10, sizeY-20, sizeX, sizeY, CreateSolidBrush(RGB(220, 5, 50)));
         assign_pixel(&hp_bar, 1, 1, 101, 10, CreateSolidBrush(RGB(0, 153, 51)));
@@ -245,6 +243,7 @@ struct PLAYER
         return;
     }
 };
+void movePlr(PLAYER *plr, HWND hwnd);
 
 struct ENTITY
 {
@@ -323,7 +322,7 @@ struct ENTITY
     }
 };
 
-int keyDown;
+bool keyDown[1<<8];
 RECT winrc;
 POINT pt;
 PLAYER plr;
@@ -385,6 +384,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             board[i][j].rect = {j*10,i*10,j*10+10,i*10+10};
         }
     }
+    srand(time(NULL));
     beginning = 1;
 
     // Show Window.
@@ -414,6 +414,14 @@ void assign_rect(RECT *rect, int x1, int y1, int x2, int y2){
 void assign_pixel(PIXEL *pixel, int left, int top, int right, int bottom, HBRUSH hbrush){
     pixel->rect = {left, top, right, bottom};
     pixel->color = hbrush;
+    return;
+}
+
+void movePlr(PLAYER *plr, HWND hwnd){
+    if(keyDown['W']) plr->ChangePos(plr->top-plr->walkSpeed, plr->left, boss.hitbox, hwnd);
+    if(keyDown['A']) plr->ChangePos(plr->top, plr->left-plr->walkSpeed, boss.hitbox, hwnd);
+    if(keyDown['S']) plr->ChangePos(plr->top+plr->walkSpeed, plr->left, boss.hitbox, hwnd);
+    if(keyDown['D']) plr->ChangePos(plr->top, plr->left+plr->walkSpeed, boss.hitbox, hwnd);
     return;
 }
 
@@ -478,43 +486,17 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
                     }
                     return 0;
                 }
-                int i,j,ch;
-                i=j=ch=0;
                 if(wParam == 0x46){ // F
                     plr.Parry(1, hwnd);
                     return 0;
                 }
-                if(keyDown) return 0;
-                keyDown = 1;
-                switch(wParam)
-                {
-                    case 0x57: // W
-                        i-=plr.walkSpeed;
-                        ch = 1;
-                        break;
-
-                    case 0x41: // A
-                        j-=plr.walkSpeed;
-                        ch = 1;
-                        break;
-
-                    case 0x53: // S
-                        i+=plr.walkSpeed;
-                        ch = 1;
-                        break;
-
-                    case 0x44: // D
-                        j+=plr.walkSpeed;
-                        ch = 1;
-                        break;
-                }
-                if(ch) plr.ChangePos(plr.top+i, plr.left+j, boss.hitbox, hwnd);
+                keyDown[wParam] = 1;
             }
             return 0;
 
         case WM_KEYUP:
             {
-                keyDown = 0;
+                keyDown[wParam] = 0;
             }
             return 0;
 
@@ -532,11 +514,11 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
         case WM_TIMER:
             {
-                if(!playing) return 0;
+                movePlr(&plr, hwnd);
                 plr.Parry(0, hwnd);
                 plr.ShootLaser(hwnd);
-                boss.Attack(plr.top, plr.left, hwnd);
                 boss.Health(plr.Hit(boss.hitbox, hwnd), hwnd);
+                boss.Attack(plr.top, plr.left, hwnd);
                 plr.Health(boss.Hit(plr.hitbox, hwnd), boss.left, boss.top, hwnd);
             }
             return 0;
